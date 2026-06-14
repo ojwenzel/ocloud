@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: secrets/ocloud/.*\.yaml$
+    age: age1n2tjuswds9g8pt0z5kvnjvhkujd5dj0wacray7m74gvew2cllggqg0dg70,age1mjxtfhhhgdphw45grhxu3pnfuve39n6w6x86hcj9z20qturdfves0wuf4s

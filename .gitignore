@@ -1,0 +1,7 @@
+# Age private keys — should never leave ~/.config/sops/age/keys.txt
+*.age
+keys.txt
+
+# In case a decrypted secrets file is ever written to disk temporarily
+*.dec
+*.decrypted

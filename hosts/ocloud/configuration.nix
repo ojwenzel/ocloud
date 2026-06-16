@@ -5,6 +5,7 @@
     ../../modules/tailscale.nix
     ../../modules/nginx.nix
     ../../modules/nextcloud.nix
+    ../../modules/backup.nix
   ];
 
   # ── System ────────────────────────────────────────────────────────────────

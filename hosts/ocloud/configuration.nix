@@ -4,6 +4,7 @@
   imports = [
     ../../modules/tailscale.nix
     ../../modules/nginx.nix
+    ../../modules/nextcloud.nix
   ];
 
   # ── System ────────────────────────────────────────────────────────────────
@@ -99,6 +100,9 @@
     # Derive age key from the host's SSH ed25519 host key
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
     secrets.tailscale_authkey = {};
+    secrets.nextcloud_adminpass = {};
+    secrets.s3_access_key = { owner = "nextcloud"; };
+    secrets.s3_secret_key = { owner = "nextcloud"; };
   };
 
   # ── Packages ──────────────────────────────────────────────────────────────

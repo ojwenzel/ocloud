@@ -30,7 +30,7 @@ in
         ${certDir}/cert.pem ${certDir}/key.pem
       chmod 640 ${certDir}/cert.pem ${certDir}/key.pem
       systemctl is-active --quiet nginx.service && \
-        systemctl reload nginx.service || true
+        systemctl reload --no-block nginx.service || true
     '';
   };
 

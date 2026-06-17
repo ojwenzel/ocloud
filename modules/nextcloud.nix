@@ -48,6 +48,18 @@ in
     };
 
     maxUploadSize = "4G";
+
+    # Camera RAW preview support — extracts embedded JPEGs from CR2/NEF/ARW etc.
+    # The app ships a libraw binary so imagick is not required.
+    extraApps = {
+      camerarawpreviews = pkgs.fetchNextcloudApp {
+        url     = "https://github.com/ariselseng/camerarawpreviews/releases/download/v1.0.2/camerarawpreviews_nextcloud.tar.gz";
+        hash    = "sha256-PBIBR6JKjPE/co+qmmefAnn5ODoGbRckWjeVwCN0RRM=";
+        license = "agpl3Plus";
+      };
+    };
+    extraAppsEnable = true;
+
   };
 
   # ── S3 primary object store ────────────────────────────────────────────────

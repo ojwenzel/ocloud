@@ -42,11 +42,6 @@ in
       adminpassFile = config.sops.secrets.nextcloud_adminpass.path;
     };
 
-    settings = {
-      default_phone_region = "DE";
-      trusted_proxies = [ "127.0.0.1" "::1" ];
-    };
-
     maxUploadSize = "4G";
 
     # Camera RAW preview support — extracts embedded JPEGs from CR2/NEF/ARW etc.
@@ -57,10 +52,31 @@ in
         hash    = "sha256-PBIBR6JKjPE/co+qmmefAnn5ODoGbRckWjeVwCN0RRM=";
         license = "agpl3Plus";
       };
+      # Memories is already packaged in nixpkgs
+      inherit (config.services.nextcloud.package.packages.apps) memories;
     };
     extraAppsEnable = true;
 
+    settings = lib.mkMerge [
+      {
+        default_phone_region = "DE";
+        trusted_proxies = [ "127.0.0.1" "::1" ];
+      }
+      # Memories: point to system binaries so it doesn't use its bundled copies
+      {
+        "memories.exiftool"         = lib.getExe pkgs.exiftool;
+        "memories.exiftool_no_local" = true;
+        "memories.vod.ffmpeg"       = lib.getExe pkgs.ffmpeg-headless;
+        "memories.vod.ffprobe"      = "${pkgs.ffmpeg-headless}/bin/ffprobe";
+        "preview_ffmpeg_path"       = lib.getExe pkgs.ffmpeg-headless;
+      }
+    ];
+
   };
+
+  # exiftool is a Perl script — the nextcloud-cron service needs Perl in PATH
+  # or indexing silently fails.
+  systemd.services.nextcloud-cron.path = [ pkgs.perl ];
 
   # ── S3 primary object store ────────────────────────────────────────────────
   # Copy the static PHP config into Nextcloud's config dir. Nextcloud

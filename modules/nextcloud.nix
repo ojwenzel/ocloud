@@ -5,6 +5,36 @@ let
   certDir = "/var/lib/tailscale-certs";
   occ    = "/run/current-system/sw/bin/nextcloud-occ";
 
+  # Memories "Places" reverse-geocoding dataset.  Fetched at build time on the
+  # *deploy machine* (which has IPv4), so the server never needs to reach GitHub
+  # directly.  If the upstream release changes, update the hash here.
+  memoriesPlacesZip = pkgs.fetchurl {
+    url  = "https://github.com/pulsejet/memories-assets/releases/download/geo-0.0.4/planet_coarse_boundaries.zip";
+    hash = "sha256-tEP8Mt/dJt0ns8Le+W2oZYQbYhBHPjNg2hkfcl8U3FU=";
+  };
+
+  # PHP script that bootstraps Nextcloud and imports a pre-extracted planet txt.
+  memoriesPlacesImport = pkgs.writeText "memories-places-import.php" ''
+    <?php
+    declare(strict_types=1);
+    define("OC_CONSOLE", 1);
+    chdir("${config.services.nextcloud.package}");
+    require_once "lib/base.php";
+    $_SERVER["argv"] = ["occ"];
+
+    $txtFile = $argv[1] ?? null;
+    if (!$txtFile || !file_exists($txtFile)) {
+        fwrite(STDERR, "Usage: php memories-places-import.php <planet.txt>\n");
+        exit(1);
+    }
+
+    $places = \OC::$server->get(\OCA\Memories\Service\Places::class);
+    $places->txnSize = 10;
+    $places->importPlanet($txtFile);
+    $places->recalculateAll();
+    echo "Done\n";
+  '';
+
   # PHP config file stored in the Nix store (contains no secrets — those are
   # read from /run/secrets/ at PHP runtime via file_get_contents).
   s3ConfigPhp = pkgs.writeText "s3.config.php" ''
@@ -109,6 +139,43 @@ in
         ${occ} -n config:app:set previewgenerator widthSizes  --value="256 1024 2048"
         ${occ} -n config:app:set previewgenerator heightSizes --value="256"
       '';
+    };
+  };
+
+  # ── Reverse geocoding (places) setup ──────────────────────────────────────
+  # Downloads the OpenStreetMaps coarse-boundaries dataset (~few hundred MB)
+  # into PostgreSQL for Memories' "Places" view. Uses a state file so it only
+  # runs once; delete the state file and restart the service to re-import.
+
+  systemd.services.nextcloud-places-setup = {
+    description = "Memories: import reverse geocoding planet data";
+    wantedBy = [ "multi-user.target" ];
+    after    = [ "nextcloud-setup.service" ];
+    requires = [ "nextcloud-setup.service" ];
+    # ZIP is pre-fetched into the Nix store at build time — no network needed.
+    # To re-import: rm /var/lib/nextcloud/.places-setup-done && systemctl start nextcloud-places-setup
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      User = "nextcloud";
+      ExecStart = (pkgs.writeShellApplication {
+        name = "nc-places-setup";
+        runtimeInputs = [ pkgs.unzip config.services.nextcloud.phpPackage ];
+        text = ''
+          STATE=/var/lib/nextcloud/.places-setup-done
+          if [ -f "$STATE" ]; then
+            echo "Places already configured — skipping"
+            exit 0
+          fi
+          TMPDIR=$(mktemp -d)
+          trap 'rm -rf "$TMPDIR"' EXIT
+          unzip -q ${memoriesPlacesZip} -d "$TMPDIR"
+          TXTFILE="$TMPDIR/planet_coarse_boundaries.txt"
+          NEXTCLOUD_CONFIG_DIR=/var/lib/nextcloud/config \
+            php ${memoriesPlacesImport} "$TXTFILE"
+          touch "$STATE"
+        '';
+      }) + "/bin/nc-places-setup";
     };
   };
 

@@ -5,3 +5,6 @@ keys.txt
 # In case a decrypted secrets file is ever written to disk temporarily
 *.dec
 *.decrypted
+
+# nix build result symlink
+result

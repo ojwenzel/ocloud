@@ -51,11 +51,23 @@
     enable = true;
     networks."10-eth0" = {
       matchConfig.Name = "eth0";
-      networkConfig.DHCP = "ipv4";
-      # IPv6 — set your actual /64 prefix here
+      # This server has no public IPv4 (disabled at Hetzner to avoid the per-IP
+      # fee). IPv4 DHCP provides only a 100.64/10 CGNAT management address with
+      # no internet connectivity.  All outbound traffic goes over IPv6.
+      #
+      # IPv4-only hosts (notably GitHub) are reachable via Cloudflare's DNS64 +
+      # NAT64 service: the DNS64 resolvers synthesise AAAA records in the
+      # Well-Known 64:ff9b::/96 prefix, and Cloudflare's NAT64 gateway
+      # translates the resulting IPv6 packets to IPv4.
+      networkConfig = {
+        DHCP = "ipv4";
+        # Hetzner's IPv6 DNS resolvers — reliable, low-latency from NBG1.
+        # (IPv4 DHCP lease provides no DNS; Fallback DNS from systemd-resolved
+        # defaults are IPv4-only and unreachable on this IPv6-only server.)
+        DNS  = [ "2a01:4ff:ff00::add:1" "2a01:4ff:ff00::add:2" ];
+      };
       address = [ "2a01:4f8:1c19:3814::1/64" ];
       routes = [
-        # IPv6 default via link-local gateway (onlink — not in same /64 block)
         { Gateway = "fe80::1"; GatewayOnLink = true; }
       ];
       ipv6AcceptRAConfig.Token = "static:::1";

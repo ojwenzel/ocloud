@@ -173,13 +173,30 @@ in
       User = "nextcloud";
       ExecStart = (pkgs.writeShellApplication {
         name = "nc-places-setup";
-        runtimeInputs = [ pkgs.unzip config.services.nextcloud.phpPackage ];
+        runtimeInputs = [
+          pkgs.unzip
+          config.services.nextcloud.phpPackage
+          config.services.postgresql.package  # psql for DB state check
+        ];
         text = ''
           STATE=/var/lib/nextcloud/.places-setup-done
           if [ -f "$STATE" ]; then
             echo "Places already configured — skipping"
             exit 0
           fi
+
+          # After a PostgreSQL restore the planet data already exists in the DB
+          # but the state file is absent (it lives on the ephemeral server disk).
+          # Detect this case to avoid a non-interactive failure from occ.
+          PLANET_COUNT=$(psql --host=/run/postgresql nextcloud -tAc \
+            "SELECT COUNT(*) FROM memories_planet LIMIT 1;" 2>/dev/null \
+            | tr -d '[:space:]' || echo "0")
+          if [ "''${PLANET_COUNT:-0}" != "0" ]; then
+            echo "Planet data already present in database (''${PLANET_COUNT} rows) — skipping import"
+            touch "$STATE"
+            exit 0
+          fi
+
           TMPDIR=$(mktemp -d)
           trap 'rm -rf "$TMPDIR"' EXIT
           unzip -q ${memoriesPlacesZip} -d "$TMPDIR"

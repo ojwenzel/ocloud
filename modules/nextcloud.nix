@@ -75,6 +75,9 @@ in
 
     maxUploadSize = "4G";
 
+    # Redis PHP extension — required for memcache.distributed / memcache.locking.
+    phpExtraExtensions = all: [ all.redis ];
+
     extraApps = {
       # Camera RAW preview support — extracts embedded JPEGs from CR2/NEF/ARW etc.
       camerarawpreviews = pkgs.fetchNextcloudApp {
@@ -93,6 +96,16 @@ in
       {
         default_phone_region = "DE";
         trusted_proxies = [ "127.0.0.1" "::1" ];
+      }
+      # Redis-backed distributed cache and file locking.
+      # memcache.local (APCu) is set automatically by the NixOS module.
+      {
+        "memcache.distributed" = "\\OC\\Memcache\\Redis";
+        "memcache.locking"     = "\\OC\\Memcache\\Redis";
+        redis = {
+          host = config.services.redis.servers.nextcloud.unixSocket;
+          port = 0;  # 0 = use unix socket, not TCP
+        };
       }
       # Enable preview providers (toggles in Nextcloud admin → Memories → File Support)
       {
